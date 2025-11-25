@@ -1,0 +1,2 @@
+aws s3 sync . s3://dna-learningndev-prod-bucket/repos/dot_net_af24fa0d-6d85-46dd-9590-3c47c20cad7c/master/ --delete --exclude ./venv/\* --exclude ./env/\*
+echo Success
