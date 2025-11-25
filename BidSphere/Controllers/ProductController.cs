@@ -137,5 +137,23 @@ namespace BidSphere.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Force finalize an auction (Admin override)
+        /// </summary>
+        [HttpPut("{id}/finalize")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> ForceFinalizeAuction(int id)
+        {
+            try
+            {
+                await _productService.ForceFinalizeAuctionAsync(id);
+                return Ok(new { message = "Auction finalized successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

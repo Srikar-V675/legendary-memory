@@ -109,5 +109,29 @@ namespace BidSphere.Service.Implementation
 
             await _productRepository.DeleteAsync(id);
         }
+
+        public async Task ForceFinalizeAuctionAsync(int id)
+        {
+            var product = await _productRepository.GetByIdAsync(id);
+            if (product == null)
+            {
+                throw new Exception("Product not found");
+            }
+
+            if (product.Auction == null)
+            {
+                throw new Exception("No auction found for this product");
+            }
+
+            if (product.Auction.Status == AuctionStatus.Completed || product.Auction.Status == AuctionStatus.Failed)
+            {
+                throw new Exception("Auction is already finalized");
+            }
+
+            // Force finalize - mark as expired
+            product.Auction.Status = AuctionStatus.Expired;
+            product.Auction.ExpiryTime = DateTime.UtcNow;
+            await _auctionRepository.UpdateAsync(product.Auction);
+        }
     }
 }
