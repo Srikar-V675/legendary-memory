@@ -86,6 +86,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 
 //inject Data Access Layer - Repository
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IAuctionRepository, AuctionRepository>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -172,6 +173,12 @@ using (var scope = app.Services.CreateScope())
             await roleManager.CreateAsync(new IdentityRole<int>(role));
         }
     }
+}
+
+// Seed Sample Data
+using (var scope = app.Services.CreateScope())
+{
+    await DbSeeder.SeedDataAsync(scope.ServiceProvider);
 }
 
 app.UseHttpsRedirection();

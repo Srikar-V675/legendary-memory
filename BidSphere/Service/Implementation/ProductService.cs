@@ -2,38 +2,112 @@
 using BidSphere.Repository.Interface;
 using BidSphere.Models.Domain;
 using BidSphere.Models.Dtos.Products;
+using BidSphere.Models.Enums;
 using BidSphere.Service.Interface;
 
 namespace BidSphere.Service.Implementation
 {
-    public class ProductService: IProductService
+    public class ProductService : IProductService
     {
         private readonly IMapper _mapper;
-        private readonly IProductRepository _productOperation;
+        private readonly IProductRepository _productRepository;
+        private readonly IAuctionRepository _auctionRepository;
 
         public ProductService(
             IMapper mapper,
-            IProductRepository productOperation)
+            IProductRepository productRepository,
+            IAuctionRepository auctionRepository)
         {
             _mapper = mapper;
-            _productOperation = productOperation;
+            _productRepository = productRepository;
+            _auctionRepository = auctionRepository;
         }
 
-        ///<inheritdoc/>
-        public List<ProductDto> GetProducts()
+        public async Task<IEnumerable<ProductDto>> GetAllProductsAsync(string? status, string? category, decimal? minPrice, decimal? maxPrice)
         {
-            var products = _productOperation.GetAllProducts();
-            return _mapper.Map<List<ProductDto>>(products);
+            var products = await _productRepository.GetAllProductsAsync();
+            // TODO: Implement ASQL filtering in Phase 5 (Milestone 3)
+            return _mapper.Map<IEnumerable<ProductDto>>(products);
         }
 
-        ///<inheritdoc/>
-        public async Task<ProductDto> AddProduct(ProductDto product)
+        public async Task<IEnumerable<ProductDto>> GetActiveAuctionsAsync()
         {
-            var productTobeAdded = _mapper.Map<Product>(product);
-            productTobeAdded.CreatedAt = DateTime.UtcNow;
+            var products = await _productRepository.GetAllProductsAsync();
+            var activeProducts = products.Where(p => p.Auction != null && p.Auction.Status == AuctionStatus.Active);
+            return _mapper.Map<IEnumerable<ProductDto>>(activeProducts);
+        }
 
-            var newProduct = await _productOperation.AddProduct(productTobeAdded);
-            return _mapper.Map<ProductDto>(newProduct);
+        public async Task<AuctionDetailsDto?> GetProductByIdAsync(int id)
+        {
+            var product = await _productRepository.GetByIdAsync(id);
+            if (product == null) return null;
+
+            return _mapper.Map<AuctionDetailsDto>(product);
+        }
+
+        public async Task<ProductDto> CreateProductAsync(CreateProductDto createDto, int ownerId)
+        {
+            var product = _mapper.Map<Product>(createDto);
+            product.OwnerId = ownerId;
+            product.CreatedAt = DateTime.UtcNow;
+
+            var createdProduct = await _productRepository.AddProduct(product);
+
+            // Auto-create auction
+            var auction = new Auction
+            {
+                ProductId = createdProduct.ProductId,
+                StartTime = DateTime.UtcNow,
+                ExpiryTime = DateTime.UtcNow.AddMinutes(createDto.AuctionDurationMinutes),
+                Status = AuctionStatus.Active,
+                ExtensionCount = 0
+            };
+
+            await _auctionRepository.CreateAsync(auction);
+
+            // Reload product with auction
+            var productWithAuction = await _productRepository.GetByIdAsync(createdProduct.ProductId);
+            return _mapper.Map<ProductDto>(productWithAuction);
+        }
+
+        public async Task<ProductDto> UpdateProductAsync(int id, UpdateProductDto updateDto)
+        {
+            var product = await _productRepository.GetByIdAsync(id);
+            if (product == null)
+            {
+                throw new Exception("Product not found");
+            }
+
+            // Check if product has active bids
+            if (await _productRepository.HasActiveBidsAsync(id))
+            {
+                throw new Exception("Cannot update product with active bids");
+            }
+
+            product.Name = updateDto.Name;
+            product.Description = updateDto.Description;
+            product.Category = updateDto.Category;
+            product.StartingPrice = updateDto.StartingPrice;
+
+            var updatedProduct = await _productRepository.UpdateAsync(product);
+            return _mapper.Map<ProductDto>(updatedProduct);
+        }
+
+        public async Task DeleteProductAsync(int id)
+        {
+            var product = await _productRepository.GetByIdAsync(id);
+            if (product == null)
+            {
+                throw new Exception("Product not found");
+            }
+
+            // Check if product has active bids
+            if (await _productRepository.HasActiveBidsAsync(id))
+            {
+                throw new Exception("Cannot delete product with active bids");
+            }
+
+            await _productRepository.DeleteAsync(id);
         }
     }
 }

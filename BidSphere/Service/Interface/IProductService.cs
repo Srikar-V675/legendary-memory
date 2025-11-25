@@ -4,17 +4,11 @@ namespace BidSphere.Service.Interface
 {
     public interface IProductService
     {
-        /// <summary>
-        /// Handler to get all the products details in the system
-        /// </summary>
-        /// <returns>List of products</returns>
-        List<ProductDto> GetProducts();
-
-        /// <summary>
-        /// Handler to add new product
-        /// </summary>
-        /// <param name="product"></param>
-        /// <returns>Newly added product</returns>
-        Task<ProductDto> AddProduct(ProductDto product);
+        Task<IEnumerable<ProductDto>> GetAllProductsAsync(string? status, string? category, decimal? minPrice, decimal? maxPrice);
+        Task<IEnumerable<ProductDto>> GetActiveAuctionsAsync();
+        Task<AuctionDetailsDto?> GetProductByIdAsync(int id);
+        Task<ProductDto> CreateProductAsync(CreateProductDto createDto, int ownerId);
+        Task<ProductDto> UpdateProductAsync(int id, UpdateProductDto updateDto);
+        Task DeleteProductAsync(int id);
     }
 }
