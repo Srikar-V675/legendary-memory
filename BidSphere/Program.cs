@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FluentValidation;
+using BidSphere.BackgroundServices;
 #endregion
 
 var builder = WebApplication.CreateBuilder(args);
@@ -83,10 +84,15 @@ builder.Services.AddControllers();
 
 //inject Service layer
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IBidService, BidService>();
 
 //inject Data Access Layer - Repository
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IAuctionRepository, AuctionRepository>();
+builder.Services.AddScoped<IBidRepository, BidRepository>();
+
+// Background Services
+builder.Services.AddHostedService<AuctionExpiryMonitor>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

@@ -33,5 +33,13 @@ namespace BidSphere.Repository.Implementation
             await _context.SaveChangesAsync();
             return auction;
         }
+
+        public async Task<IEnumerable<Auction>> GetExpiredAuctionsAsync()
+        {
+            return await _context.Auctions
+                .Where(a => a.Status == Models.Enums.AuctionStatus.Active &&
+                           a.ExpiryTime <= DateTime.UtcNow)
+                .ToListAsync();
+        }
     }
 }
