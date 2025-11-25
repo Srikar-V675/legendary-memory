@@ -14,30 +14,40 @@ namespace BidSphere.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _productService;
+        private readonly IExcelService _excelService;
         private readonly CreateProductDtoValidator _createValidator;
         private readonly UpdateProductDtoValidator _updateValidator;
 
         public ProductsController(
             IProductService productService,
+            IExcelService excelService,
             CreateProductDtoValidator createValidator,
             UpdateProductDtoValidator updateValidator)
         {
             _productService = productService;
+            _excelService = excelService;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
         }
 
         /// <summary>
-        /// Get all products with optional filters
+        /// Get all products with optional ASQL filtering and pagination
         /// </summary>
         [HttpGet]
         public async Task<ActionResult> GetProducts(
-            [FromQuery] string? status,
-            [FromQuery] string? category,
-            [FromQuery] decimal? minPrice,
-            [FromQuery] decimal? maxPrice)
+            [FromQuery] string? asql,
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize)
         {
-            var products = await _productService.GetAllProductsAsync(status, category, minPrice, maxPrice);
+            var products = await _productService.GetAllProductsAsync(asql);
+
+            // Simple pagination
+            if (page.HasValue && pageSize.HasValue && page > 0 && pageSize > 0)
+            {
+                products = products.Skip((page.Value - 1) * pageSize.Value)
+                                 .Take(pageSize.Value);
+            }
+
             return Ok(products);
         }
 
@@ -63,6 +73,41 @@ namespace BidSphere.Controllers
                 return NotFound(new { message = "Product not found" });
             }
             return Ok(product);
+        }
+
+        /// <summary>
+        /// Upload multiple products via Excel file (Admin only)
+        /// </summary>
+        [HttpPost("upload")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> UploadProducts(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "No file uploaded" });
+            }
+
+            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Only .xlsx files are supported" });
+            }
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var ownerId = int.Parse(userIdClaim);
+                var result = await _excelService.ParseProductsFromExcelAsync(file, ownerId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         /// <summary>

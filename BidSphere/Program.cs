@@ -85,6 +85,8 @@ builder.Services.AddControllers();
 //inject Service layer
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IBidService, BidService>();
+builder.Services.AddScoped<IExcelService, ExcelService>();
+builder.Services.AddScoped<IAsqlParserService, AsqlParserService>();
 
 //inject Data Access Layer - Repository
 builder.Services.AddScoped<IProductRepository, ProductRepository>();

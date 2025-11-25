@@ -12,22 +12,31 @@ namespace BidSphere.Service.Implementation
         private readonly IMapper _mapper;
         private readonly IProductRepository _productRepository;
         private readonly IAuctionRepository _auctionRepository;
+        private readonly IAsqlParserService _asqlParser;
 
         public ProductService(
             IMapper mapper,
             IProductRepository productRepository,
-            IAuctionRepository auctionRepository)
+            IAuctionRepository auctionRepository,
+            IAsqlParserService asqlParser)
         {
             _mapper = mapper;
             _productRepository = productRepository;
             _auctionRepository = auctionRepository;
+            _asqlParser = asqlParser;
         }
 
-        public async Task<IEnumerable<ProductDto>> GetAllProductsAsync(string? status, string? category, decimal? minPrice, decimal? maxPrice)
+        public async Task<IEnumerable<ProductDto>> GetAllProductsAsync(string? asql)
         {
             var products = await _productRepository.GetAllProductsAsync();
-            // TODO: Implement ASQL filtering in Phase 5 (Milestone 3)
-            return _mapper.Map<IEnumerable<ProductDto>>(products);
+            var query = products.AsQueryable();
+
+            if (!string.IsNullOrEmpty(asql))
+            {
+                query = _asqlParser.ApplyAsqlFilter(query, asql);
+            }
+
+            return _mapper.Map<IEnumerable<ProductDto>>(query);
         }
 
         public async Task<IEnumerable<ProductDto>> GetActiveAuctionsAsync()
