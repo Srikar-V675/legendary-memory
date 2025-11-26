@@ -75,7 +75,10 @@ namespace BidSphere.Service.Implementation
                 message.Body = bodyBuilder.ToMessageBody();
 
                 using var client = new SmtpClient();
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, _emailSettings.EnableSsl);
+
+                // Mailtrap uses STARTTLS on port 2525 or 587
+                // Use SecureSocketOptions.StartTls for Mailtrap, not Auto or SslOnConnect
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, MailKit.Security.SecureSocketOptions.StartTls);
                 await client.AuthenticateAsync(_emailSettings.Username, _emailSettings.Password);
                 await client.SendAsync(message);
                 await client.DisconnectAsync(true);
