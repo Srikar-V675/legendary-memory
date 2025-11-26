@@ -79,6 +79,18 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+// Add CORS policy for Angular frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // Add services to the container.
 builder.Services.AddControllers();
 
@@ -211,6 +223,9 @@ using (var scope = app.Services.CreateScope())
 app.UseMiddleware<BidSphere.Middleware.GlobalExceptionHandlerMiddleware>();
 
 app.UseHttpsRedirection();
+
+// Enable CORS
+app.UseCors("AllowAngularApp");
 
 app.UseAuthentication();
 app.UseAuthorization();
