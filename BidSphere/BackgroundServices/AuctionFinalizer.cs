@@ -100,7 +100,7 @@ namespace BidSphere.BackgroundServices
                     {
                         await emailService.SendAuctionWonNotificationAsync(
                             winner.Email,
-                            winner.UserName ?? "User",
+                            winner.Email, // Use email as name since we don't have name in register
                             productName,
                             finalPrice
                         );

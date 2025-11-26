@@ -56,73 +56,94 @@ namespace BidSphere.BackgroundServices
 
             foreach (var payment in timedOutPayments)
             {
-                _logger.LogInformation("Processing timed out payment {PaymentId} for auction {AuctionId}, attempt #{AttemptNumber}",
-                    payment.PaymentId, payment.AuctionId, payment.AttemptNumber);
-
-                // Mark current payment as failed
-                payment.Status = PaymentStatus.Failed;
-                await paymentRepository.UpdateAsync(payment);
-
-                // Check if we can retry
-                if (payment.AttemptNumber < AuctionConfig.MaxPaymentAttempts)
+                try
                 {
-                    // Get next highest bidder (excluding all previous failed bidders)
-                    var failedBidderIds = (await paymentRepository.GetByAuctionIdAsync(payment.AuctionId))
-                        .Select(p => p.BidderId)
-                        .ToList();
+                    _logger.LogInformation("Processing timed out payment {PaymentId} for auction {AuctionId}, attempt #{AttemptNumber}",
+                        payment.PaymentId, payment.AuctionId, payment.AttemptNumber);
 
-                    var nextBid = await bidRepository.GetNextHighestBidderAsync(payment.AuctionId, failedBidderIds);
+                    // Mark current payment as failed
+                    payment.Status = PaymentStatus.Failed;
+                    await paymentRepository.UpdateAsync(payment);
 
-                    if (nextBid != null)
+                    // Check if we can retry
+                    if (payment.AttemptNumber < AuctionConfig.MaxPaymentAttempts)
                     {
-                        // Update auction's HighestBidId to reflect the new winner
-                        var auction = await auctionRepository.GetByIdAsync(payment.AuctionId);
-                        if (auction != null)
-                        {
-                            auction.HighestBidId = nextBid.BidId;
-                            await auctionRepository.UpdateAsync(auction);
-                            _logger.LogInformation("Updated auction {AuctionId} HighestBidId to {BidId} (amount: {Amount})",
-                                payment.AuctionId, nextBid.BidId, nextBid.Amount);
-                        }
+                        // Get next highest bidder (excluding all previous failed bidders)
+                        var failedBidderIds = (await paymentRepository.GetByAuctionIdAsync(payment.AuctionId))
+                            .Select(p => p.BidderId)
+                            .ToList();
 
-                        // Create new payment attempt for next bidder
-                        var newPaymentAttempt = new PaymentAttempt
-                        {
-                            AuctionId = payment.AuctionId,
-                            BidderId = nextBid.BidderId,
-                            Status = PaymentStatus.Pending,
-                            AttemptNumber = payment.AttemptNumber + 1,
-                            AttemptTime = DateTime.UtcNow
-                        };
+                        var nextBid = await bidRepository.GetNextHighestBidderAsync(payment.AuctionId, failedBidderIds);
 
-                        await paymentRepository.CreateAsync(newPaymentAttempt);
-                        _logger.LogInformation("Created payment attempt #{AttemptNumber} for auction {AuctionId}, new bidder {BidderId} with amount {Amount}",
-                            newPaymentAttempt.AttemptNumber, payment.AuctionId, newPaymentAttempt.BidderId, nextBid.Amount);
-
-                        // Send email to new winner
-                        try
+                        if (nextBid != null)
                         {
-                            if (nextBid.Bidder?.Email != null)
+                            // Update auction's HighestBidId to reflect the new winner
+                            var auction = await auctionRepository.GetByIdAsync(payment.AuctionId);
+                            if (auction != null)
                             {
-                                await emailService.SendAuctionWonNotificationAsync(
-                                    nextBid.Bidder.Email,
-                                    nextBid.Bidder.UserName ?? "User",
-                                    payment.Auction?.Product?.Name ?? "Unknown Product",
-                                    nextBid.Amount
-                                );
-                                _logger.LogInformation("Retry email sent to {Email} for auction {AuctionId}",
-                                    nextBid.Bidder.Email, payment.AuctionId);
+                                auction.HighestBidId = nextBid.BidId;
+                                await auctionRepository.UpdateAsync(auction);
+                                _logger.LogInformation("Updated auction {AuctionId} HighestBidId to {BidId} (amount: {Amount})",
+                                    payment.AuctionId, nextBid.BidId, nextBid.Amount);
+                            }
+
+                            // Create new payment attempt for next bidder
+                            var newPaymentAttempt = new PaymentAttempt
+                            {
+                                AuctionId = payment.AuctionId,
+                                BidderId = nextBid.BidderId,
+                                Status = PaymentStatus.Pending,
+                                AttemptNumber = payment.AttemptNumber + 1,
+                                AttemptTime = DateTime.UtcNow
+                            };
+
+                            await paymentRepository.CreateAsync(newPaymentAttempt);
+                            _logger.LogInformation("Created payment attempt #{AttemptNumber} for auction {AuctionId}, new bidder {BidderId} with amount {Amount}",
+                                newPaymentAttempt.AttemptNumber, payment.AuctionId, newPaymentAttempt.BidderId, nextBid.Amount);
+
+                            // Send email to new winner
+                            try
+                            {
+                                if (nextBid.Bidder?.Email != null)
+                                {
+                                    await emailService.SendAuctionWonNotificationAsync(
+                                        nextBid.Bidder.Email,
+                                        nextBid.Bidder.Email, // Use email as name since we don't have name in register
+                                        payment.Auction?.Product?.Name ?? "Unknown Product",
+                                        nextBid.Amount
+                                    );
+                                    _logger.LogInformation("Retry email sent to {Email} for auction {AuctionId}",
+                                        nextBid.Bidder.Email, payment.AuctionId);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Cannot send email to bidder {BidderId} - no email address", nextBid.BidderId);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Failed to send retry email for auction {AuctionId}", payment.AuctionId);
+                                // Continue processing - email failure shouldn't stop the retry
                             }
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            _logger.LogError(ex, "Failed to send retry email for auction {AuctionId}", payment.AuctionId);
+                            // No more bidders available
+                            _logger.LogWarning("No more bidders available for auction {AuctionId}, marking as FAILED", payment.AuctionId);
+                            var auction = await auctionRepository.GetByIdAsync(payment.AuctionId);
+                            if (auction != null)
+                            {
+                                auction.Status = AuctionStatus.Failed;
+                                await auctionRepository.UpdateAsync(auction);
+                            }
                         }
                     }
                     else
                     {
-                        // No more bidders available
-                        _logger.LogWarning("No more bidders available for auction {AuctionId}, marking as FAILED", payment.AuctionId);
+                        // Max attempts reached, mark auction as failed
+                        _logger.LogWarning("Max payment attempts ({MaxAttempts}) reached for auction {AuctionId}, marking as FAILED",
+                            AuctionConfig.MaxPaymentAttempts, payment.AuctionId);
+
                         var auction = await auctionRepository.GetByIdAsync(payment.AuctionId);
                         if (auction != null)
                         {
@@ -131,18 +152,11 @@ namespace BidSphere.BackgroundServices
                         }
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    // Max attempts reached, mark auction as failed
-                    _logger.LogWarning("Max payment attempts ({MaxAttempts}) reached for auction {AuctionId}, marking as FAILED",
-                        AuctionConfig.MaxPaymentAttempts, payment.AuctionId);
-
-                    var auction = await auctionRepository.GetByIdAsync(payment.AuctionId);
-                    if (auction != null)
-                    {
-                        auction.Status = AuctionStatus.Failed;
-                        await auctionRepository.UpdateAsync(auction);
-                    }
+                    _logger.LogError(ex, "Error processing timed out payment {PaymentId} for auction {AuctionId}",
+                        payment.PaymentId, payment.AuctionId);
+                    // Continue with next payment - don't let one failure stop the whole process
                 }
             }
         }

@@ -39,17 +39,26 @@ namespace BidSphere.Controllers
                 payments = await _paymentRepository.GetByUserIdAsync(userId);
             }
 
-            var result = payments.Select(p => new
+            var result = payments.Select(p =>
             {
-                paymentId = p.PaymentId,
-                productName = p.Auction?.Product?.Name ?? "Unknown",
-                bidAmount = p.Auction?.HighestBid?.Amount ?? 0,
-                status = p.Status.ToString(),
-                attemptNumber = p.AttemptNumber,
-                attemptTime = p.AttemptTime,
-                confirmedAmount = p.ConfirmedAmount,
-                confirmedAt = p.ConfirmedAt,
-                bidderName = p.Bidder?.UserName ?? "Unknown"
+                // Get the actual bid amount for this specific bidder
+                var bidderBid = p.Auction?.Bids?.FirstOrDefault(b => b.BidderId == p.BidderId);
+                var bidAmount = bidderBid?.Amount ?? p.ConfirmedAmount ?? 0;
+
+                return new
+                {
+                    paymentId = p.PaymentId,
+                    auctionId = p.AuctionId,
+                    productName = p.Auction?.Product?.Name ?? "Unknown",
+                    bidAmount = bidAmount,
+                    status = p.Status.ToString(),
+                    attemptNumber = p.AttemptNumber,
+                    attemptTime = p.AttemptTime,
+                    confirmedAmount = p.ConfirmedAmount,
+                    confirmedAt = p.ConfirmedAt,
+                    bidderEmail = p.Bidder?.Email ?? "Unknown",
+                    bidderId = p.BidderId
+                };
             });
 
             return Ok(result);

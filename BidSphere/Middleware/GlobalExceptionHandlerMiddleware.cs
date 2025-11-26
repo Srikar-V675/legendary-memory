@@ -61,53 +61,45 @@ namespace BidSphere.Middleware
             var response = context.Response;
             response.ContentType = "application/json";
 
+            int statusCode;
+            string message = exception.Message;
+
+            // Check exception type and set appropriate status code
+            if (exception is AuctionNotFoundException || exception is ProductNotFoundException)
+            {
+                statusCode = (int)HttpStatusCode.NotFound;
+            }
+            else if (exception is PaymentException)
+            {
+                statusCode = (int)HttpStatusCode.BadRequest;
+            }
+            else if (exception is InvalidBidException)
+            {
+                statusCode = (int)HttpStatusCode.BadRequest;
+            }
+            else if (exception is UnauthorizedBidException || exception is UnauthorizedAccessException)
+            {
+                statusCode = (int)HttpStatusCode.Forbidden;
+            }
+            else if (exception is ArgumentNullException || exception is ArgumentException)
+            {
+                statusCode = (int)HttpStatusCode.BadRequest;
+            }
+            else
+            {
+                statusCode = (int)HttpStatusCode.InternalServerError;
+                message = "An internal server error occurred. Please try again later.";
+            }
+
+            response.StatusCode = statusCode;
+
             var errorResponse = new
             {
                 success = false,
-                message = exception.Message,
-                statusCode = 0,
+                message = message,
+                statusCode = statusCode,
                 timestamp = DateTime.UtcNow
             };
-
-            switch (exception)
-            {
-                case AuctionNotFoundException:
-                case ProductNotFoundException:
-                    response.StatusCode = (int)HttpStatusCode.NotFound;
-                    errorResponse = errorResponse with { statusCode = response.StatusCode };
-                    break;
-
-                case InvalidBidException:
-                    response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    errorResponse = errorResponse with { statusCode = response.StatusCode };
-                    break;
-
-                case PaymentException:
-                    response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    errorResponse = errorResponse with { statusCode = response.StatusCode };
-                    break;
-
-                case UnauthorizedBidException:
-                case UnauthorizedAccessException:
-                    response.StatusCode = (int)HttpStatusCode.Forbidden;
-                    errorResponse = errorResponse with { statusCode = response.StatusCode };
-                    break;
-
-                case ArgumentNullException:
-                case ArgumentException:
-                    response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    errorResponse = errorResponse with { statusCode = response.StatusCode };
-                    break;
-
-                default:
-                    response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                    errorResponse = errorResponse with
-                    {
-                        statusCode = response.StatusCode,
-                        message = "An internal server error occurred. Please try again later."
-                    };
-                    break;
-            }
 
             var result = JsonSerializer.Serialize(errorResponse);
             return response.WriteAsync(result);

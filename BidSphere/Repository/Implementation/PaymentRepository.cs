@@ -63,8 +63,11 @@ namespace BidSphere.Repository.Implementation
         public async Task<IEnumerable<PaymentAttempt>> GetByUserIdAsync(int userId)
         {
             return await _context.PaymentAttempts
+                .Include(p => p.Bidder)
                 .Include(p => p.Auction)
                     .ThenInclude(a => a.Product)
+                .Include(p => p.Auction)
+                    .ThenInclude(a => a.Bids)
                 .Where(p => p.BidderId == userId)
                 .OrderByDescending(p => p.AttemptTime)
                 .ToListAsync();
@@ -76,6 +79,8 @@ namespace BidSphere.Repository.Implementation
                 .Include(p => p.Bidder)
                 .Include(p => p.Auction)
                     .ThenInclude(a => a.Product)
+                .Include(p => p.Auction)
+                    .ThenInclude(a => a.Bids)
                 .OrderByDescending(p => p.AttemptTime)
                 .ToListAsync();
         }
