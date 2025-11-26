@@ -44,6 +44,7 @@ namespace BidSphere.BackgroundServices
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var expiredAuctions = await context.Auctions
+                .Include(a => a.Bids) // Load bids to determine highest bidder
                 .Where(a => a.Status == AuctionStatus.Active && a.ExpiryTime <= DateTime.UtcNow)
                 .ToListAsync();
 
@@ -55,8 +56,23 @@ namespace BidSphere.BackgroundServices
             foreach (var auction in expiredAuctions)
             {
                 auction.Status = AuctionStatus.Expired;
-                _logger.LogInformation("Auction {AuctionId} marked as EXPIRED at {ExpiryTime}",
-                    auction.AuctionId, auction.ExpiryTime);
+
+                // Set HighestBidId when marking as expired
+                var highestBid = auction.Bids?
+                    .OrderByDescending(b => b.Amount)
+                    .FirstOrDefault();
+
+                if (highestBid != null)
+                {
+                    auction.HighestBidId = highestBid.BidId;
+                    _logger.LogInformation("Auction {AuctionId} marked as EXPIRED at {ExpiryTime}, highest bidder: {BidderId} with amount {Amount}",
+                        auction.AuctionId, auction.ExpiryTime, highestBid.BidderId, highestBid.Amount);
+                }
+                else
+                {
+                    _logger.LogInformation("Auction {AuctionId} marked as EXPIRED at {ExpiryTime} without bids",
+                        auction.AuctionId, auction.ExpiryTime);
+                }
             }
 
             await context.SaveChangesAsync();

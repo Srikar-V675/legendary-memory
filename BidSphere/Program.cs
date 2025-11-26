@@ -88,6 +88,7 @@ builder.Services.AddScoped<IBidService, BidService>();
 builder.Services.AddScoped<IExcelService, ExcelService>();
 builder.Services.AddScoped<IAsqlParserService, AsqlParserService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // Configure EmailSettings from appsettings.json
 builder.Services.Configure<BidSphere.Models.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));

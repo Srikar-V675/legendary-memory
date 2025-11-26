@@ -1,0 +1,123 @@
+<div class="container">
+  <div class="header">
+    <h1>🎯 BidSphere Dashboard</h1>
+    <p class="subtitle">Real-time Auction System Metrics</p>
+    <p class="last-updated" *ngIf="metrics">
+      Last updated: {{ formatTime(metrics.lastUpdated) }}
+    </p>
+  </div>
+
+  <div *ngIf="loading" class="loading">Loading dashboard data...</div>
+
+  <div *ngIf="error" class="error">
+    {{ error }}
+  </div>
+
+  <div *ngIf="metrics && !loading" class="dashboard">
+    <!-- Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card active">
+        <div class="label">Active Auctions</div>
+        <div class="value">{{ metrics.activeCount }}</div>
+      </div>
+      <div class="metric-card pending">
+        <div class="label">Pending Payments</div>
+        <div class="value">{{ metrics.pendingPayment }}</div>
+      </div>
+      <div class="metric-card completed">
+        <div class="label">Completed</div>
+        <div class="value">{{ metrics.completedCount }}</div>
+      </div>
+      <div class="metric-card failed">
+        <div class="label">Failed</div>
+        <div class="value">{{ metrics.failedCount }}</div>
+      </div>
+      <div class="metric-card revenue">
+        <div class="label">Total Revenue</div>
+        <div class="value">\${{ metrics.totalRevenue.toFixed(2) }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Payment Success Rate</div>
+        <div class="value">{{ metrics.paymentSuccessRate }}%</div>
+        <div class="progress-bar">
+          <div
+            class="progress-fill"
+            [style.width.%]="metrics.paymentSuccessRate"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Bidders Section -->
+    <div class="section">
+      <h2>🏆 Top Bidders</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Bidder Email</th>
+            <th>Total Bids</th>
+            <th>Total Amount</th>
+            <th>Average Bid</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="metrics.topBidders.length === 0">
+            <td colspan="5" style="text-align: center; color: #999">
+              No bidders yet
+            </td>
+          </tr>
+          <tr *ngFor="let bidder of metrics.topBidders; let i = index">
+            <td>
+              <strong>{{ i + 1 }}</strong>
+            </td>
+            <td>{{ bidder.bidderEmail }}</td>
+            <td>{{ bidder.totalBids }}</td>
+            <td>\${{ bidder.totalAmount.toFixed(2) }}</td>
+            <td>\${{ bidder.averageBid.toFixed(2) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Recent Auctions Section -->
+    <div class="section">
+      <h2>📊 Recent Auctions</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Product</th>
+            <th>Status</th>
+            <th>Highest Bid</th>
+            <th>Bid Count</th>
+            <th>Expiry Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="metrics.recentAuctions.length === 0">
+            <td colspan="6" style="text-align: center; color: #999">
+              No auctions yet
+            </td>
+          </tr>
+          <tr *ngFor="let auction of metrics.recentAuctions">
+            <td>
+              <strong>#{{ auction.auctionId }}</strong>
+            </td>
+            <td>{{ auction.productName }}</td>
+            <td>
+              <span
+                class="status-badge"
+                [ngClass]="getStatusClass(auction.status)"
+                >{{ auction.status }}</span
+              >
+            </td>
+            <td>\${{ auction.highestBid.toFixed(2) }}</td>
+            <td>{{ auction.bidCount }}</td>
+            <td>{{ formatDate(auction.expiryTime) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
