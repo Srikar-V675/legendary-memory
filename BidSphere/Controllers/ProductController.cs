@@ -17,17 +17,20 @@ namespace BidSphere.Controllers
         private readonly IExcelService _excelService;
         private readonly CreateProductDtoValidator _createValidator;
         private readonly UpdateProductDtoValidator _updateValidator;
+        private readonly ILogger<ProductsController> _logger;
 
         public ProductsController(
             IProductService productService,
             IExcelService excelService,
             CreateProductDtoValidator createValidator,
-            UpdateProductDtoValidator updateValidator)
+            UpdateProductDtoValidator updateValidator,
+            ILogger<ProductsController> logger)
         {
             _productService = productService;
             _excelService = excelService;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
+            _logger = logger;
         }
 
         /// <summary>
@@ -98,16 +101,9 @@ namespace BidSphere.Controllers
                 return Unauthorized();
             }
 
-            try
-            {
-                var ownerId = int.Parse(userIdClaim);
-                var result = await _excelService.ParseProductsFromExcelAsync(file, ownerId);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var ownerId = int.Parse(userIdClaim);
+            var result = await _excelService.ParseProductsFromExcelAsync(file, ownerId);
+            return Ok(result);
         }
 
         /// <summary>
@@ -129,16 +125,9 @@ namespace BidSphere.Controllers
                 return Unauthorized();
             }
 
-            try
-            {
-                var ownerId = int.Parse(userIdClaim);
-                var product = await _productService.CreateProductAsync(createDto, ownerId);
-                return CreatedAtAction(nameof(GetProduct), new { id = product.ProductId }, product);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var ownerId = int.Parse(userIdClaim);
+            var product = await _productService.CreateProductAsync(createDto, ownerId);
+            return CreatedAtAction(nameof(GetProduct), new { id = product.ProductId }, product);
         }
 
         /// <summary>
@@ -154,15 +143,8 @@ namespace BidSphere.Controllers
                 return BadRequest(new { errors = validationResult.Errors.Select(e => e.ErrorMessage) });
             }
 
-            try
-            {
-                var product = await _productService.UpdateProductAsync(id, updateDto);
-                return Ok(product);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var product = await _productService.UpdateProductAsync(id, updateDto);
+            return Ok(product);
         }
 
         /// <summary>
@@ -172,15 +154,8 @@ namespace BidSphere.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteProduct(int id)
         {
-            try
-            {
-                await _productService.DeleteProductAsync(id);
-                return Ok(new { message = "Product deleted successfully" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _productService.DeleteProductAsync(id);
+            return Ok(new { message = "Product deleted successfully" });
         }
 
         /// <summary>
@@ -190,15 +165,19 @@ namespace BidSphere.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult> ForceFinalizeAuction(int id)
         {
-            try
-            {
-                await _productService.ForceFinalizeAuctionAsync(id);
-                return Ok(new { message = "Auction finalized successfully" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _productService.ForceFinalizeAuctionAsync(id);
+            return Ok(new { message = "Auction finalized successfully" });
+        }
+
+        /// <summary>
+        /// Confirm payment for won auction
+        /// </summary>
+        [HttpPut("{id}/confirm")]
+        [Authorize]
+        public async Task<ActionResult> ConfirmPayment(int id, [FromBody] ConfirmPaymentDto dto, [FromQuery] bool testInstantFail = false)
+        {
+            var result = await _productService.ConfirmPaymentAsync(id, dto, testInstantFail);
+            return Ok(result);
         }
     }
 }

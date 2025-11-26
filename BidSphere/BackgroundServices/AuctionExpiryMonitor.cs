@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BidSphere.BackgroundServices
 {
+    /// <summary>
+    /// Monitors active auctions and marks them as expired when their expiry time is reached.
+    /// Runs every 10 seconds.
+    /// </summary>
     public class AuctionExpiryMonitor : BackgroundService
     {
         private readonly IServiceProvider _serviceProvider;
@@ -17,7 +21,7 @@ namespace BidSphere.BackgroundServices
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Auction Expiry Monitor started");
+            _logger.LogInformation("Auction Expiry Monitor started - checking every 10 seconds");
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -43,16 +47,20 @@ namespace BidSphere.BackgroundServices
                 .Where(a => a.Status == AuctionStatus.Active && a.ExpiryTime <= DateTime.UtcNow)
                 .ToListAsync();
 
+            if (!expiredAuctions.Any())
+            {
+                return;
+            }
+
             foreach (var auction in expiredAuctions)
             {
                 auction.Status = AuctionStatus.Expired;
-                _logger.LogInformation("Auction {AuctionId} expired", auction.AuctionId);
+                _logger.LogInformation("Auction {AuctionId} marked as EXPIRED at {ExpiryTime}",
+                    auction.AuctionId, auction.ExpiryTime);
             }
 
-            if (expiredAuctions.Any())
-            {
-                await context.SaveChangesAsync();
-            }
+            await context.SaveChangesAsync();
+            _logger.LogInformation("Marked {Count} auctions as expired", expiredAuctions.Count);
         }
     }
 }

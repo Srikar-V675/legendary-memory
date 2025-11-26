@@ -87,14 +87,31 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IBidService, BidService>();
 builder.Services.AddScoped<IExcelService, ExcelService>();
 builder.Services.AddScoped<IAsqlParserService, AsqlParserService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+// Configure EmailSettings from appsettings.json
+builder.Services.Configure<BidSphere.Models.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 //inject Data Access Layer - Repository
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IAuctionRepository, AuctionRepository>();
 builder.Services.AddScoped<IBidRepository, BidRepository>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+
+// Add HttpContextAccessor for accessing user context in services
+builder.Services.AddHttpContextAccessor();
+
+// Load AuctionConfig from appsettings
+var auctionSettings = builder.Configuration.GetSection("AuctionSettings");
+BidSphere.Constants.AuctionConfig.AntiSnipingThresholdSeconds = auctionSettings.GetValue<int>("AntiSnipingThresholdSeconds", 60);
+BidSphere.Constants.AuctionConfig.ExtensionDurationSeconds = auctionSettings.GetValue<int>("ExtensionDurationSeconds", 60);
+BidSphere.Constants.AuctionConfig.PaymentTimeoutSeconds = auctionSettings.GetValue<int>("PaymentTimeoutSeconds", 60);
+BidSphere.Constants.AuctionConfig.MaxPaymentAttempts = auctionSettings.GetValue<int>("MaxPaymentAttempts", 3);
 
 // Background Services
 builder.Services.AddHostedService<AuctionExpiryMonitor>();
+builder.Services.AddHostedService<AuctionFinalizer>();
+builder.Services.AddHostedService<RetryQueueService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -188,6 +205,9 @@ using (var scope = app.Services.CreateScope())
 {
     await DbSeeder.SeedDataAsync(scope.ServiceProvider);
 }
+
+// Global Exception Handler Middleware (must be first)
+app.UseMiddleware<BidSphere.Middleware.GlobalExceptionHandlerMiddleware>();
 
 app.UseHttpsRedirection();
 

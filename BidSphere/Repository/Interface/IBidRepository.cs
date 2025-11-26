@@ -8,5 +8,6 @@ namespace BidSphere.Repository.Interface
         Task<IEnumerable<Bid>> GetByAuctionIdAsync(int auctionId);
         Task<Bid?> GetHighestBidAsync(int auctionId);
         Task<Bid?> GetNextHighestBidderAsync(int auctionId, int excludeBidderId);
+        Task<Bid?> GetNextHighestBidderAsync(int auctionId, List<int> excludeBidderIds);
     }
 }

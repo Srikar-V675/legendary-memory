@@ -39,16 +39,9 @@ namespace BidSphere.Controllers
                 return Unauthorized();
             }
 
-            try
-            {
-                var userId = int.Parse(userIdClaim);
-                var bid = await _bidService.PlaceBidAsync(userId, bidDto);
-                return CreatedAtAction(nameof(GetBidsByAuction), new { auctionId = bid.AuctionId }, bid);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var userId = int.Parse(userIdClaim);
+            var bid = await _bidService.PlaceBidAsync(userId, bidDto);
+            return CreatedAtAction(nameof(GetBidsByAuction), new { auctionId = bid.AuctionId }, bid);
         }
 
         /// <summary>

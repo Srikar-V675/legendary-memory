@@ -11,5 +11,6 @@ namespace BidSphere.Service.Interface
         Task<ProductDto> UpdateProductAsync(int id, UpdateProductDto updateDto);
         Task DeleteProductAsync(int id);
         Task ForceFinalizeAuctionAsync(int id);
+        Task<object> ConfirmPaymentAsync(int productId, ConfirmPaymentDto dto, bool testInstantFail);
     }
 }

@@ -4,6 +4,7 @@ using BidSphere.Models.Dtos.Bids;
 using BidSphere.Models.Enums;
 using BidSphere.Repository.Interface;
 using BidSphere.Service.Interface;
+using BidSphere.Exceptions;
 
 namespace BidSphere.Service.Implementation
 {
@@ -30,9 +31,14 @@ namespace BidSphere.Service.Implementation
         {
             // Get product with auction
             var product = await _productRepository.GetByIdAsync(bidDto.AuctionId);
-            if (product?.Auction == null)
+            if (product == null)
             {
-                throw new Exception("Auction not found");
+                throw new ProductNotFoundException(bidDto.AuctionId);
+            }
+
+            if (product.Auction == null)
+            {
+                throw new AuctionNotFoundException($"No auction found for product {bidDto.AuctionId}");
             }
 
             var auction = product.Auction;
@@ -40,13 +46,13 @@ namespace BidSphere.Service.Implementation
             // Validate auction is active
             if (auction.Status != AuctionStatus.Active)
             {
-                throw new Exception("Auction is not active");
+                throw new InvalidBidException($"Auction is not active. Current status: {auction.Status}");
             }
 
             // Validate user is not product owner
             if (product.OwnerId == userId)
             {
-                throw new Exception("Cannot bid on your own product");
+                throw new UnauthorizedBidException("Cannot bid on your own product");
             }
 
             // Get current highest bid
@@ -56,7 +62,7 @@ namespace BidSphere.Service.Implementation
             // Validate bid amount
             if (bidDto.Amount <= minimumBid)
             {
-                throw new Exception($"Bid must be higher than current highest bid of ${minimumBid}");
+                throw new InvalidBidException($"Bid must be higher than current highest bid of ${minimumBid:F2}");
             }
 
             // Anti-sniping: Check if bid is within last minute

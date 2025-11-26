@@ -27,6 +27,13 @@ namespace BidSphere.Repository.Implementation
                 .FirstOrDefaultAsync(a => a.ProductId == productId);
         }
 
+        public async Task<Auction?> GetByIdAsync(int auctionId)
+        {
+            return await _context.Auctions
+                .Include(a => a.Product)
+                .FirstOrDefaultAsync(a => a.AuctionId == auctionId);
+        }
+
         public async Task<Auction> UpdateAsync(Auction auction)
         {
             _context.Auctions.Update(auction);

@@ -45,5 +45,14 @@ namespace BidSphere.Repository.Implementation
                 .OrderByDescending(b => b.Amount)
                 .FirstOrDefaultAsync();
         }
+
+        public async Task<Bid?> GetNextHighestBidderAsync(int auctionId, List<int> excludeBidderIds)
+        {
+            return await _context.Bids
+                .Include(b => b.Bidder)
+                .Where(b => b.AuctionId == auctionId && !excludeBidderIds.Contains(b.BidderId))
+                .OrderByDescending(b => b.Amount)
+                .FirstOrDefaultAsync();
+        }
     }
 }
