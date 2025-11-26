@@ -5,6 +5,8 @@ VisualStudioVersion = 18.0.11217.181
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BidSphere", "BidSphere\BidSphere.csproj", "{9CFD2485-D109-730D-48C8-88058BB5C748}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BidSphere.Tests", "BidSphere.Tests\BidSphere.Tests.csproj", "{F14F2F61-4A11-40E4-ACEE-5E68A3640BEE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{9CFD2485-D109-730D-48C8-88058BB5C748}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9CFD2485-D109-730D-48C8-88058BB5C748}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9CFD2485-D109-730D-48C8-88058BB5C748}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F14F2F61-4A11-40E4-ACEE-5E68A3640BEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F14F2F61-4A11-40E4-ACEE-5E68A3640BEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F14F2F61-4A11-40E4-ACEE-5E68A3640BEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F14F2F61-4A11-40E4-ACEE-5E68A3640BEE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

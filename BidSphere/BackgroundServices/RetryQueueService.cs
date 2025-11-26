@@ -46,6 +46,14 @@ namespace BidSphere.BackgroundServices
 
             var timedOutPayments = await paymentRepository.GetTimedOutPaymentsAsync();
 
+            if (!timedOutPayments.Any())
+            {
+                // Don't log when there's nothing to process - reduces log spam
+                return;
+            }
+
+            _logger.LogInformation("Processing {Count} timed-out payments for retry", timedOutPayments.Count());
+
             foreach (var payment in timedOutPayments)
             {
                 _logger.LogInformation("Processing timed out payment {PaymentId} for auction {AuctionId}, attempt #{AttemptNumber}",
@@ -67,6 +75,16 @@ namespace BidSphere.BackgroundServices
 
                     if (nextBid != null)
                     {
+                        // Update auction's HighestBidId to reflect the new winner
+                        var auction = await auctionRepository.GetByIdAsync(payment.AuctionId);
+                        if (auction != null)
+                        {
+                            auction.HighestBidId = nextBid.BidId;
+                            await auctionRepository.UpdateAsync(auction);
+                            _logger.LogInformation("Updated auction {AuctionId} HighestBidId to {BidId} (amount: {Amount})",
+                                payment.AuctionId, nextBid.BidId, nextBid.Amount);
+                        }
+
                         // Create new payment attempt for next bidder
                         var newPaymentAttempt = new PaymentAttempt
                         {
@@ -78,8 +96,8 @@ namespace BidSphere.BackgroundServices
                         };
 
                         await paymentRepository.CreateAsync(newPaymentAttempt);
-                        _logger.LogInformation("Created payment attempt #{AttemptNumber} for auction {AuctionId}, new bidder {BidderId}",
-                            newPaymentAttempt.AttemptNumber, payment.AuctionId, newPaymentAttempt.BidderId);
+                        _logger.LogInformation("Created payment attempt #{AttemptNumber} for auction {AuctionId}, new bidder {BidderId} with amount {Amount}",
+                            newPaymentAttempt.AttemptNumber, payment.AuctionId, newPaymentAttempt.BidderId, nextBid.Amount);
 
                         // Send email to new winner
                         try

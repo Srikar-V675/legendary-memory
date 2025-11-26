@@ -187,12 +187,30 @@ namespace BidSphere.Service.Implementation
             var pendingPayment = await _paymentRepository.GetPendingPaymentAsync(auction.AuctionId);
             if (pendingPayment == null)
             {
-                throw new PaymentException("No pending payment found for this auction");
+                // Check if user had a failed payment attempt
+                var allPayments = await _paymentRepository.GetByAuctionIdAsync(auction.AuctionId);
+                var userFailedPayment = allPayments.FirstOrDefault(p => p.BidderId == userId && p.Status == PaymentStatus.Failed);
+
+                if (userFailedPayment != null)
+                {
+                    throw new PaymentException("Your payment attempt has already failed. The auction has moved to the next bidder.");
+                }
+
+                throw new PaymentException("No pending payment found for this auction. The auction may have been completed or cancelled.");
             }
 
             // Verify user is the current eligible bidder
             if (pendingPayment.BidderId != userId)
             {
+                // Check if this user had a failed attempt
+                var allPayments = await _paymentRepository.GetByAuctionIdAsync(auction.AuctionId);
+                var userFailedPayment = allPayments.FirstOrDefault(p => p.BidderId == userId && p.Status == PaymentStatus.Failed);
+
+                if (userFailedPayment != null)
+                {
+                    throw new PaymentException("Your payment attempt has already failed. The auction has moved to the next bidder.");
+                }
+
                 throw new UnauthorizedAccessException("You are not the current eligible bidder for this auction");
             }
 
@@ -204,17 +222,19 @@ namespace BidSphere.Service.Implementation
                 return new { message = "Payment failed (test mode)", status = "Failed" };
             }
 
-            // Get highest bid amount
-            var highestBid = await _bidRepository.GetHighestBidAsync(auction.AuctionId);
-            if (highestBid == null)
+            // Get the current bidder's bid amount (not necessarily the highest bid if retries occurred)
+            var allBids = await _bidRepository.GetByAuctionIdAsync(auction.AuctionId);
+            var currentBidderBid = allBids.FirstOrDefault(b => b.BidderId == pendingPayment.BidderId);
+
+            if (currentBidderBid == null)
             {
-                throw new PaymentException("No bids found for this auction");
+                throw new PaymentException("No bid found for current bidder");
             }
 
-            // Verify amount matches
-            if (dto.ConfirmedAmount != highestBid.Amount)
+            // Verify amount matches the current bidder's bid amount
+            if (dto.ConfirmedAmount != currentBidderBid.Amount)
             {
-                throw new PaymentException($"Confirmed amount ({dto.ConfirmedAmount:C}) does not match winning bid ({highestBid.Amount:C})");
+                throw new PaymentException($"Confirmed amount ({dto.ConfirmedAmount:C}) does not match your bid amount ({currentBidderBid.Amount:C})");
             }
 
             // Mark payment as success

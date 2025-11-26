@@ -59,8 +59,11 @@ namespace BidSphere.BackgroundServices
 
             if (!expiredAuctions.Any())
             {
+                // Don't log when there's nothing to process - reduces log spam
                 return;
             }
+
+            _logger.LogInformation("Processing {Count} expired auctions for payment initiation", expiredAuctions.Count);
 
             foreach (var auction in expiredAuctions)
             {
@@ -116,7 +119,7 @@ namespace BidSphere.BackgroundServices
                 }
             }
 
-            _logger.LogInformation("Finalized {Count} expired auctions", expiredAuctions.Count);
+            _logger.LogInformation("Successfully finalized {Count} expired auctions", expiredAuctions.Count);
         }
     }
 }

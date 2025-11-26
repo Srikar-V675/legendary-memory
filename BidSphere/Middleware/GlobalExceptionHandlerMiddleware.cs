@@ -78,6 +78,10 @@ namespace BidSphere.Middleware
                     break;
 
                 case InvalidBidException:
+                    response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    errorResponse = errorResponse with { statusCode = response.StatusCode };
+                    break;
+
                 case PaymentException:
                     response.StatusCode = (int)HttpStatusCode.BadRequest;
                     errorResponse = errorResponse with { statusCode = response.StatusCode };
